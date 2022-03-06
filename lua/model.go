@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/ciiiii/kubectl-lua/api"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -20,8 +21,9 @@ func init() {
 }
 
 type KubeClient struct {
-	clientset *kubernetes.Clientset
-	dynamic   dynamic.Interface
+	clientset         *kubernetes.Clientset
+	dynamic           dynamic.Interface
+	resourceDiscovery *api.ResourceDiscovery
 }
 
 func kubeClientFromConfig() (*KubeClient, error) {
@@ -39,9 +41,15 @@ func kubeClientFromConfig() (*KubeClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	resourceDiscovery, err := api.NewResourceDiscovery(clientset)
+	if err != nil {
+		return nil, err
+	}
 	return &KubeClient{
-		clientset: clientset,
-		dynamic:   dynamicClient,
+		clientset:         clientset,
+		dynamic:           dynamicClient,
+		resourceDiscovery: resourceDiscovery,
 	}, nil
 }
 

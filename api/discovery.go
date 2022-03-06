@@ -75,6 +75,10 @@ func (rd *ResourceDiscovery) Search(kind string) (schema.GroupVersionResource, e
 	}
 }
 
+func (rd *ResourceDiscovery) List() []schema.GroupVersionResource {
+	return rd.lister
+}
+
 func allNames(apiResource metav1.APIResource, gv schema.GroupVersion) []string {
 	var baseNames []string
 	baseNames = append(baseNames, apiResource.Name)
