@@ -1,24 +1,15 @@
-package lua
+package vm
 
 import (
-	"flag"
-	"os"
+	"fmt"
 
-	"github.com/ciiiii/kubectl-lua/api"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-)
+	"k8s.io/client-go/rest"
 
-var (
-	kubeconfig string
+	"github.com/ciiiii/kubectl-lua/api"
 )
-
-func init() {
-	flag.StringVar(&kubeconfig, "kubeconfig", os.Getenv("KUBECONFIG"), "absolute path of the kubeconfig file")
-	flag.Parse()
-}
 
 type KubeClient struct {
 	clientset         *kubernetes.Clientset
@@ -26,12 +17,7 @@ type KubeClient struct {
 	resourceDiscovery *api.ResourceDiscovery
 }
 
-func kubeClientFromConfig() (*KubeClient, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
+func kubeClientFromConfig(config *rest.Config) (*KubeClient, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -57,16 +43,22 @@ type LuaVM struct {
 	l *lua.LState
 }
 
-func NewLuaVM() *LuaVM {
+func NewLuaVM(config *rest.Config) *LuaVM {
 	L := lua.NewState(lua.Options{
 		IncludeGoStackTrace: true,
 	})
-	registerKubeClientType(L)
+	registerKubeClientType(L, config)
 	return &LuaVM{l: L}
 }
 
 func (l *LuaVM) Load(filename string) error {
 	return l.l.DoFile(filename)
+}
+
+func (l *LuaVM) REPL() error {
+	// TODO: implement REPL
+	fmt.Println("REPL is not implemented yet")
+	return nil
 }
 
 func (l *LuaVM) Close() {
