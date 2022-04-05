@@ -7,7 +7,7 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run filename",
+	Use:   "run <lua_file>",
 	Short: "Run a lua file with kube injected Lua vm",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
