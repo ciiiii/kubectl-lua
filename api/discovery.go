@@ -66,9 +66,14 @@ func (rd *ResourceDiscovery) Search(kind string) (schema.GroupVersionResource, e
 		for _, index := range indexes {
 			gvr, err := rd.gvrByIndex(index)
 			if err == nil {
-				resources = append(resources, strings.Join([]string{gvr.Resource, gvr.Version, gvr.Group}, "."))
+				if gvr.Group == "" {
+					resources = append(resources, strings.Join([]string{gvr.Resource, gvr.Version}, "."))
+				} else {
+					resources = append(resources, strings.Join([]string{gvr.Resource, gvr.Version, gvr.Group}, "."))
+				}
 			}
 		}
+		// TODO: select short GVR
 		return schema.GroupVersionResource{}, fmt.Errorf("found multiple resources %s for kind %q", strings.Join(resources, ", "), kind)
 	} else {
 		return schema.GroupVersionResource{}, fmt.Errorf("kind %s not found", kind)
@@ -91,11 +96,18 @@ func allNames(apiResource metav1.APIResource, gv schema.GroupVersion) []string {
 
 	var fullNames []string
 	for _, baseName := range baseNames {
-		fullNames = append(fullNames,
-			baseName,
-			strings.Join([]string{baseName, gv.Group}, "."),
-			strings.Join([]string{baseName, gv.Version, gv.Group}, "."),
-		)
+		if gv.Group == "" {
+			fullNames = append(fullNames,
+				baseName,
+				strings.Join([]string{baseName, gv.Version}, "."),
+			)
+		} else {
+			fullNames = append(fullNames,
+				baseName,
+				strings.Join([]string{baseName, gv.Group}, "."),
+				strings.Join([]string{baseName, gv.Version, gv.Group}, "."),
+			)
+		}
 	}
 	return fullNames
 }
