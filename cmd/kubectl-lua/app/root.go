@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -30,7 +29,6 @@ func Execute() {
 	flags.AddFlagSet(rootCmd.PersistentFlags())
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 }

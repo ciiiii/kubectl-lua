@@ -2,19 +2,20 @@ package vm
 
 import (
 	"context"
-	"fmt"
 
 	lua "github.com/yuin/gopher-lua"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const LuaKubeModuleName = "kube"
 
 var kubeMethods = map[string]lua.LGFunction{
-	"version":      kubeVersion,
-	"resources":    kubeResources,
-	"listResource": kubeListResource,
+	"version":   kubeVersion,
+	"resources": kubeResources,
+	"resource":  kubeResource,
+	"namespace": kubeNamespace,
+	"get":       kubeGet,
+	"list":      kubeList,
 }
 
 func kubeVersion(L *lua.LState) int {
@@ -43,20 +44,72 @@ func kubeResources(L *lua.LState) int {
 	return 1
 }
 
-func kubeListResource(L *lua.LState) int {
-	k := checkKubeClient(L)
-	if L.GetTop() == 4 {
-		group := L.CheckString(2)
-		version := L.CheckString(3)
-		resource := L.CheckString(4)
-		fmt.Printf("group: %s, version: %s, resource: %s\n", group, version, resource)
-		objList, err := k.dynamic.Resource(schema.GroupVersionResource{
-			Group:    group,
-			Version:  version,
-			Resource: resource,
-		}).List(context.Background(), metav1.ListOptions{})
+func kubeResource(L *lua.LState) int {
+	if L.GetTop() >= 2 {
+		kube := checkKubeClient(L)
+		kind := L.CheckString(2)
+		newKube := *kube
+		newKube.kind = kind
+		userData := L.NewUserData()
+		userData.Value = &newKube
+		L.SetMetatable(userData, L.GetTypeMetatable(LuaKubeModuleName))
+		L.Push(userData)
+		return 1
+	}
+	L.RaiseError("arguments error: %d", L.GetTop())
+	return 0
+}
+
+func kubeNamespace(L *lua.LState) int {
+	if L.GetTop() == 2 {
+		kube := checkKubeClient(L)
+		namespace := L.CheckString(2)
+		newKube := *kube
+		newKube.namespace = namespace
+		newKube.scope = namespaceScoped
+		userData := L.NewUserData()
+		userData.Value = &newKube
+		L.SetMetatable(userData, L.GetTypeMetatable(LuaKubeModuleName))
+		L.Push(userData)
+		return 1
+	}
+	L.RaiseError("arguments error: %d", L.GetTop())
+	return 0
+}
+
+func kubeGet(L *lua.LState) int {
+	if L.GetTop() == 2 {
+		k := checkKubeClient(L)
+		name := L.CheckString(2)
+		client, err := k.resourceClient()
 		if err != nil {
-			L.RaiseError(err.Error())
+			L.RaiseError("failed to init resource client: %v", err)
+			return 0
+		}
+		obj, err := client.Get(context.Background(), name, metav1.GetOptions{})
+		if err != nil {
+			L.RaiseError("failed to get resource: %v", err)
+			return 0
+		}
+		val := decodeValue(L, obj.Object)
+		L.Push(val)
+		return 1
+	}
+	L.RaiseError("arguments error: %d", L.GetTop())
+	return 0
+}
+
+func kubeList(L *lua.LState) int {
+	if L.GetTop() == 1 {
+		k := checkKubeClient(L)
+		client, err := k.resourceClient()
+		if err != nil {
+			L.RaiseError("failed to init resource client: %v", err)
+			return 0
+		}
+		objList, err := client.List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			L.RaiseError("failed to list resource: %v", err)
 			return 0
 		}
 		tableData := L.NewTable()

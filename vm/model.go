@@ -11,10 +11,20 @@ import (
 	"github.com/ciiiii/kubectl-lua/api"
 )
 
+type resourceScope string
+
+const (
+	clusterScoped   resourceScope = "Cluster"
+	namespaceScoped resourceScope = "Namespaced"
+)
+
 type KubeClient struct {
 	clientset         *kubernetes.Clientset
 	dynamic           dynamic.Interface
 	resourceDiscovery *api.ResourceDiscovery
+	scope             resourceScope
+	namespace         string
+	kind              string
 }
 
 func kubeClientFromConfig(config *rest.Config) (*KubeClient, error) {
@@ -37,6 +47,17 @@ func kubeClientFromConfig(config *rest.Config) (*KubeClient, error) {
 		dynamic:           dynamicClient,
 		resourceDiscovery: resourceDiscovery,
 	}, nil
+}
+
+func (k *KubeClient) resourceClient() (dynamic.ResourceInterface, error) {
+	gvr, err := k.resourceDiscovery.Search(k.kind)
+	if err != nil {
+		return nil, err
+	}
+	if k.scope == namespaceScoped {
+		return k.dynamic.Resource(gvr).Namespace(k.namespace), nil
+	}
+	return k.dynamic.Resource(gvr), nil
 }
 
 type LuaVM struct {
