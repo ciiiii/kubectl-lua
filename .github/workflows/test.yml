@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - releases/*
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1.2.0
+        # ref: https://github.com/helm/kind-action#example-workflow
+        with:
+          cluster_name: kind-cluster
+          kubectl_version: v1.21.0
+      
+      - name: Check Cluster
+        run: |
+          kubectl version
+          kubectl cluster-info
